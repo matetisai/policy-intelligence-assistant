@@ -2,62 +2,67 @@ from fastapi import FastAPI, UploadFile, File, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pypdf import PdfReader
 import io
-import ollama
+import requests
+import os
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
 def generate_suggested_questions(text):
     prompt = f"""
-You are generating suggested questions for an employee policy assistant.
+You are helping a user explore an uploaded policy document.
 
-Read the policy text below and create EXACTLY 6 questions that an employee could ask about this policy.
+Based ONLY on the document below, generate 3 useful questions
+that a user would naturally want to ask about this document.
 
-STRICT RULES:
+Rules:
+1. Use ONLY information found in the document.
+2. Do not invent topics that are not present.
+3. Make each question different.
+4. Questions should cover different parts of the document.
+5. Keep each question short and clear.
+6. Return ONLY the questions, one per line.
+7. Do not number the questions.
+8. Do not use bullet points.
 
-- Every line MUST be a question.
-- Every line MUST end with a question mark (?).
-- Start each question with words such as:
-  What, How, Who, When, Where, Which, Can, or Are.
-- Do NOT write statements.
-- Do NOT copy sentences from the policy.
-- Do NOT give answers.
-- Do NOT add explanations.
-- Do NOT number the questions.
-- Return ONLY 6 questions, one question per line.
-- Use ONLY information that appears in the policy.
-- Choose questions from different topics or sections of the policy.
-- Avoid asking multiple questions about the same topic.
-- Prefer questions that cover different useful areas of the policy.
-- Only ask questions that can be answered directly using information stated in the policy.
-- Do not ask about consequences, penalties, reasons, opinions, or other information unless the policy explicitly provides that information.
-
-Good example:
-What should an employee do if company equipment is lost or stolen?
-How should an employee report a security incident?
-What should employees do if they suspect unauthorized access?
-
-Bad example:
-Employees must report lost equipment.
-The company requires employees to use VPN.
-Employees should change their passwords.
-
-Policy text:
-{text[:6000]}
+Document:
+{text}
 """
 
-    response = ollama.chat(
-        model="llama3.2:3b",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
+    response = requests.post(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+        headers={
+            "Content-Type": "application/json",
+            "x-goog-api-key": os.getenv("GEMINI_API_KEY")
+        },
+        json={
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": prompt
+                        }
+                    ]
+                }
+            ]
+        },
+        timeout=60
     )
 
-    questions = response["message"]["content"].strip().split("\n")
+    if response.status_code != 200:
+       return []
+
+    result = response.json()
+
+    if "candidates" not in result:
+        return []
+
+    questions_text = result["candidates"][0]["content"]["parts"][0]["text"]
 
     questions = [
         q.strip()
-        for q in questions
-        if q.strip().endswith("?")
+        for q in questions_text.split("\n")
+        if q.strip()
     ]
 
     return questions[:3]
@@ -137,7 +142,6 @@ async def upload_policy(
         "filename": file.filename,
         "pages": len(reader.pages),
         "chunks": len(chunks),
-        "text": text,
         "suggested_questions": suggested_questions
     }
 
@@ -218,17 +222,42 @@ when the answer is genuinely not present anywhere in the provided policy informa
 Answer:
 """
 
-    response = ollama.chat(
-        model="llama3.2:3b",
-        messages=[
+    response = requests.post(
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+    headers={
+        "Content-Type": "application/json",
+        "x-goog-api-key": os.getenv("GEMINI_API_KEY")
+    },
+    json={
+        "contents": [
             {
-                "role": "user",
-                "content": prompt
+                "parts": [
+                    {
+                        "text": prompt
+                    }
+                ]
             }
         ]
-    )
+    },
+    timeout=60
+)
+    if response.status_code != 200:
+        return {
+        "answer": "Gemini is temporarily unavailable. Please try again in a moment.",
+        "similarity_score": float(score)
+    }
+
+    result = response.json()
+
+    if "candidates" not in result:
+        return {
+            "answer": "Gemini could not generate an answer. Please try again.",
+            "similarity_score": float(score)
+        }
+
+    answer = result["candidates"][0]["content"]["parts"][0]["text"]
 
     return {
-        "answer": response["message"]["content"],
+        "answer": answer,
         "similarity_score": float(score)
     }

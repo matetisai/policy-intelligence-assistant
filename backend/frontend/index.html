@@ -54,7 +54,6 @@
 
 <div class="card">
 
-    <div class="card">
 
     <h2>Ask a Question</h2>
 
@@ -139,6 +138,10 @@ if (file.type !== "application/pdf") {
 
                     questionButton.textContent = question;
                     questionButton.className = "suggested-question";
+
+                    questionButton.style.display = "block";
+                    questionButton.style.width = "100%";
+                    questionButton.style.marginBottom = "10px";
 
                     questionButton.addEventListener("click", () => {
                         document.getElementById("questionInput").value = question;
@@ -242,7 +245,14 @@ askButton.addEventListener("click", async () => {
 
             const aiMessage = document.createElement("div");
             aiMessage.className = "chat-answer";
-            aiMessage.innerHTML = data.answer.replace(/\n/g, "<br>");
+           const formattedAnswer = data.answer
+                .replace(/\r?\n/g, "\n")
+                .replace(/\\+\*/g, "*")
+                .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                .replace(/^\s*\*\s+/gm, "• ")
+                .replace(/\n/g, "<br>");
+ 
+            aiMessage.innerHTML = formattedAnswer;
 
             chatHistory.appendChild(userMessage);
             chatHistory.appendChild(aiMessage);
