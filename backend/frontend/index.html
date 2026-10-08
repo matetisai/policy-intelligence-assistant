@@ -108,7 +108,7 @@ if (file.type !== "application/pdf") {
         try {
 
             const response = await fetch(
-                "http://127.0.0.1:8000/upload-policy",
+                "https://policy-intelligence-assistant.onrender.com/upload-policy",
                 {
                     method: "POST",
                     headers: {
@@ -226,7 +226,7 @@ askButton.addEventListener("click", async () => {
     try {
 
         const response = await fetch(
-            `http://127.0.0.1:8000/ask?question=${encodeURIComponent(question)}`,
+            `https://policy-intelligence-assistant.onrender.com/ask?question=${encodeURIComponent(question)}`,
             {
                 method: "POST",
                 headers: {
