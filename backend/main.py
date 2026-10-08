@@ -68,8 +68,8 @@ Document:
     return questions[:3]
 
 
-from chunking import split_text
-from embeddings import create_embeddings, find_best_chunks
+from backend.chunking import split_text
+from backend.embeddings import create_embeddings, find_best_chunks
 
 app = FastAPI(title="Policy Intelligence Assistant")
 
