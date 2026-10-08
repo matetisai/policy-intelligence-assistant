@@ -120,6 +120,7 @@ if (file.type !== "application/pdf") {
 
             const data = await response.json();
 
+
             if (response.ok) {
                 uploadStatus.textContent =
                     `Policy uploaded successfully! ${data.chunks} chunks created.`;
